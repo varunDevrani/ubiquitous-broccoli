@@ -1,4 +1,15 @@
-const BASE = "https://glowing-eureka-mm8i.onrender.com/api/v1";
+const BASE = "api/v1";
+
+let _accessToken = null;
+let _onAuthError = null;
+
+export function setAccessToken(token) {
+  _accessToken = token;
+}
+
+export function setOnAuthError(fn) {
+  _onAuthError = fn;
+}
 
 async function request(endpoint, options = {}) {
   const { body, method = body ? "POST" : "GET", headers = {}, auth } = options;
@@ -9,9 +20,8 @@ async function request(endpoint, options = {}) {
   };
 
   if (auth) {
-    const accessToken = localStorage.getItem("access_token");
-    if (accessToken) {
-      config.headers["Authorization"] = `Bearer ${accessToken}`;
+    if (_accessToken) {
+      config.headers["Authorization"] = `Bearer ${_accessToken}`;
     }
   }
 
@@ -30,6 +40,13 @@ async function request(endpoint, options = {}) {
     err.status = res.status;
     err.errorCode = data.error_code;
     err.recoverable = data.recoverable;
+
+    // Any authenticated request that comes back 401 means the session was
+    // revoked server-side — clear local state immediately.
+    if (auth && res.status === 401 && _onAuthError) {
+      _onAuthError();
+    }
+
     throw err;
   }
 

@@ -7,22 +7,29 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  function saveTokens(access, refresh) {
+    api.setAccessToken(access);
+    localStorage.setItem("refresh_token", refresh);
+  }
+
+  function clearTokens() {
+    api.setAccessToken(null);
+    localStorage.removeItem("refresh_token");
+    setUser(null);
+  }
+
   useEffect(() => {
-    const accessToken = localStorage.getItem("access_token");
-    if (accessToken) {
-      try {
-        const payload = JSON.parse(atob(accessToken.split(".")[1]));
-        if (payload.exp * 1000 > Date.now()) {
-          setUser({ uid: payload.sub, role: payload.role });
-        } else {
-          tryRefresh();
-          return;
-        }
-      } catch {
-        localStorage.removeItem("access_token");
-      }
+    // Register so that any auth: true request returning 401 auto-clears state.
+    api.setOnAuthError(clearTokens);
+
+    // Access token lives only in memory — on every page load we must re-hydrate
+    // via the refresh token.
+    const rt = localStorage.getItem("refresh_token");
+    if (rt) {
+      tryRefresh();
+    } else {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   async function tryRefresh() {
@@ -40,17 +47,6 @@ export function AuthProvider({ children }) {
       clearTokens();
     }
     setLoading(false);
-  }
-
-  function saveTokens(access, refresh) {
-    localStorage.setItem("access_token", access);
-    localStorage.setItem("refresh_token", refresh);
-  }
-
-  function clearTokens() {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    setUser(null);
   }
 
   const handleLogin = useCallback(async (email, password) => {
