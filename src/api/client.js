@@ -1,4 +1,4 @@
-const BASE = "api/v1";
+const BASE = "https://glowing-eureka-mm8i.onrender.com/api/v1";
 
 let _accessToken = null;
 let _onAuthError = null;
